@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>Shop — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">🛒 Shop</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">The treats, toys &amp; care we trust — from our store to your door.</p>
+
+  <div class="field">
+    <input id="search" placeholder="🔍 Search the store…" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:15px">
+  </div>
+  <div class="forum-cat" id="cat-filter"></div>
+  <div class="product-grid" id="products"></div>
+
+  <div class="card" id="cart-card" style="display:none">
+    <h2>🧺 Your cart (<span id="cart-count">0</span>)</h2>
+    <div id="cart-lines"></div>
+    <p style="font-size:18px;font-weight:800;margin:8px 0">Total: <span id="cart-total">$0.00</span></p>
+    <button class="btn block" id="checkout-btn">Checkout securely →</button>
+    <p class="hint" style="font-size:12px;color:var(--brown-soft);margin-top:8px">Checkout always happens on Shopify's secure hosted page — we never see your card.</p>
+  </div>
+
+  <div class="card">
+    <h2>⭐ Plus members save 10%</h2>
+    <p>Pluto &amp; Luna Plus members get 10% off every order, automatically at checkout.</p>
+    <p><a class="btn ghost small" href="upgrade.html">Get Plus</a></p>
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/store.js"></script>
+<script>
+PLS.init("shop.html");
+(function () {
+  var filter = "all", query = "";
+  var cart = [];
+  try { cart = JSON.parse(localStorage.getItem("pls_cart") || "[]"); } catch (e) {}
+
+  function money(n) { return "$" + n.toFixed(2); }
+
+  // Real product photos are URLs; fall back to a paw when a product has no image.
+  function pimg(p, size) {
+    size = size || 110;
+    if (p.image && p.image.indexOf("http") === 0) {
+      return '<img src="' + PLS.esc(p.image) + '" alt="' + PLS.esc(p.imageAlt || p.name) +
+        '" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">';
+    }
+    return '<span style="font-size:' + Math.round(size * 0.4) + 'px">' + PLS.esc(p.image || "🐾") + "</span>";
+  }
+
+  function renderCats() {
+    var cats = [{ id: "all", label: "Everything" }].concat(PLS.Store.categories);
+    var fc = document.getElementById("cat-filter");
+    fc.innerHTML = "";
+    cats.forEach(function (c) {
+      var s = document.createElement("span");
+      s.className = "chip" + (filter === c.id ? " selected" : "");
+      s.textContent = c.label;
+      s.onclick = function () { filter = c.id; renderProducts(); };
+      fc.appendChild(s);
+    });
+  }
+
+  function renderProducts() {
+    PLS.Store.listProducts({ category: filter === "all" ? null : filter, query: query || null }).then(function (items) {
+      document.getElementById("products").innerHTML = items.length ? items.map(function (p) {
+        return '<div class="product"><div class="p-img">' + pimg(p) + "</div>" +
+          '<div class="p-body"><div class="p-cat">' + PLS.esc(p.category) + "</div>" +
+          '<div class="p-name">' + PLS.esc(p.name) + "</div>" +
+          '<div class="p-price">' + money(p.price) +
+          (p.compareAtPrice ? ' <span style="text-decoration:line-through;color:var(--brown-soft);font-size:12px">' + money(p.compareAtPrice) + "</span>" : "") +
+          "</div>" +
+          (p.rating ? '<div style="font-size:12px;color:var(--brown-soft)">⭐ ' + p.rating + " (" + p.reviews + ")</div>" : "") +
+          (p.inStock
+            ? '<button class="btn small block" style="margin-top:8px" data-add="' + PLS.esc(p.id) + '">Add to cart</button>'
+            : '<p style="font-size:12px;color:var(--coral);font-weight:700;margin-top:8px">Out of stock</p>') +
+          "</div></div>";
+      }).join("") : '<div class="empty-state"><span class="icon">🔍</span>Nothing found — try another search.</div>';
+
+        document.querySelectorAll("[data-add]").forEach(function (b) {
+          b.onclick = function () {
+            var id = b.getAttribute("data-add");
+            var line = cart.find(function (l) { return l.id === id; });
+            if (line) line.qty++; else cart.push({ id: id, qty: 1 });
+            localStorage.setItem("pls_cart", JSON.stringify(cart));
+            renderCart();
+          };
+        });
+    }).catch(function () {
+      document.getElementById("products").innerHTML =
+        '<div class="empty-state"><span class="icon">⚠️</span>Couldn\'t reach the store just now — check your connection and try again.</div>';
+    });
+  }
+
+  function renderCart() {
+    var card = document.getElementById("cart-card");
+    if (!cart.length) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    var total = 0, count = 0;
+    var proms = cart.map(function (l) { return PLS.Store.getProduct(l.id).then(function (p) { return { p: p, qty: l.qty }; }); });
+    Promise.all(proms).then(function (lines) {
+      document.getElementById("cart-lines").innerHTML = lines.map(function (x) {
+        total += x.p.price * x.qty; count += x.qty;
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)">' +
+          '<span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:36px;height:36px;border-radius:8px;overflow:hidden;background:var(--amber-soft);display:inline-flex;align-items:center;justify-content:center;flex:none">' +
+          pimg(x.p, 36) + "</span>" +
+          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + PLS.esc(x.p.name) + " × " + x.qty + "</span></span>" +
+          "<strong>" + money(x.p.price * x.qty) + "</strong></div>";
+      }).join("");
+      document.getElementById("cart-count").textContent = count;
+      document.getElementById("cart-total").textContent = money(total);
+    }).catch(function () {
+      document.getElementById("cart-lines").innerHTML =
+        '<p style="font-size:13px;color:var(--brown-soft)">Couldn\'t load cart details — try again in a moment.</p>';
+    });
+  }
+
+  document.getElementById("checkout-btn").onclick = function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = "Opening secure checkout…";
+    PLS.Store.createCheckout(cart).then(function (res) {
+      // Hosted Shopify checkout — the app never sees card data.
+      window.location.href = res.url;
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = "Checkout securely →";
+      alert("Couldn't start checkout: " + (err && err.message ? err.message : "please try again."));
+    });
+  };
+
+  var searchT = null;
+  document.getElementById("search").addEventListener("input", function (e) {
+    clearTimeout(searchT);
+    var v = e.target.value;
+    searchT = setTimeout(function () { query = v; renderProducts(); }, 350);
+  });
+
+  renderProducts(); renderCart();
+  PLS.Store.ready.then(function () { renderCats(); }); // categories load async from Shopify
+})();
+</script>
+</body>
+</html>
