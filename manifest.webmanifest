@@ -22,8 +22,8 @@
   ],
   "name": "Pluto & Luna Select",
   "short_name": "Pluto & Luna",
-  "start_url": "https://app.plutoandlunaselect.com/index.html",
+  "start_url": "https://whatsonmyballotusa-tech.github.io/pluto-and-luna-select-app/index.html",
   "theme_color": "#3E2C23",
-  "scope": "https://app.plutoandlunaselect.com/",
-  "id": "https://app.plutoandlunaselect.com/"
+  "scope": "https://whatsonmyballotusa-tech.github.io/pluto-and-luna-select-app/",
+  "id": "https://whatsonmyballotusa-tech.github.io/pluto-and-luna-select-app/"
 }
