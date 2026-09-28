@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>Pluto & Luna Plus — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <div class="hero">
+    <h1>⭐ Pluto &amp; Luna Plus</h1>
+    <p>For the dog parent who wants everything handled. Generous free tier stays free forever.</p>
+  </div>
+
+  <div class="card">
+    <table class="tier-compare">
+      <tr><th></th><th>Free</th><th>Plus</th></tr>
+      <tr><td>Pet profiles</td><td>3</td><td><strong>Unlimited</strong></td></tr>
+      <tr><td>Food scans / week</td><td>5</td><td><strong>Unlimited</strong></td></tr>
+      <tr><td>Care guides &amp; knowledge base</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Community forum</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Recipe library</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Advanced nutrition planner</td><td>—</td><td><strong>✅</strong></td></tr>
+      <tr><td>Health records + med reminders</td><td>—</td><td><strong>✅</strong></td></tr>
+      <tr><td>Store discount</td><td>—</td><td><strong>10% off</strong></td></tr>
+    </table>
+  </div>
+
+  <div class="card paywall" id="paywall-card">
+    <div class="lock">⭐</div>
+    <h2 id="paywall-title">Go Plus</h2>
+    <p style="font-size:28px;font-weight:800" id="paywall-price">$6.99/mo</p>
+    <p style="font-size:13px;color:var(--brown-soft)">Price placeholder — final pricing confirmed at launch. Cancel anytime.</p>
+    <button class="btn block" id="subscribe-btn">Start Plus</button>
+    <p style="font-size:12px;color:var(--brown-soft);margin-top:8px">Demo: upgrading works instantly on this device. Real billing via Stripe at launch.</p>
+  </div>
+
+  <div class="disclaimer">
+    <strong>Our promise:</strong> the free tier is genuinely useful — scanner, guides,
+    recipes, community, 3 dogs. Plus is for power users, not a ransom for basics.
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script>
+PLS.init("index.html");
+(function () {
+  document.getElementById("paywall-price").textContent = PLS.PAID_PRICE;
+  if (PLS.isPaid()) {
+    document.getElementById("paywall-title").textContent = "You're Plus! ⭐";
+    var btn = document.getElementById("subscribe-btn");
+    btn.textContent = "Manage (demo: downgrade to Free)";
+    btn.onclick = function () { PLS.setTier("free"); location.reload(); };
+  } else {
+    document.getElementById("subscribe-btn").onclick = function () {
+      PLS.setTier("paid");
+      alert("Welcome to Plus! (Demo — real Stripe billing at launch.)");
+      location.href = "index.html";
+    };
+  }
+})();
+</script>
+</body>
+</html>
