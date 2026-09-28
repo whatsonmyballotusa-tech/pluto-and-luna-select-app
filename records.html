@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>Health Records — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">❤️ Health Records</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">Vaccines, meds, vet visits, reminders — your dog's health file.</p>
+
+  <div id="gate"></div>
+
+  <div id="records" style="display:none">
+    <div class="card">
+      <h2>💊 Medication reminders</h2>
+      <div id="med-list"></div>
+      <div class="field"><label for="med-name">Medication</label><input id="med-name" placeholder="e.g. Apoquel 16mg"></div>
+      <div class="grid-2">
+        <div class="field"><label for="med-pet">Dog</label><select id="med-pet"></select></div>
+        <div class="field"><label for="med-time">Daily time</label><input id="med-time" type="time" value="08:00"></div>
+      </div>
+      <button class="btn block" id="med-add">Add reminder</button>
+      <p class="hint" style="font-size:12px;color:var(--brown-soft);margin-top:8px">Demo: reminders save on this device. Push notifications arrive with the backend.</p>
+    </div>
+
+    <div class="card">
+      <h2>💉 Vaccine &amp; visit log</h2>
+      <div id="vet-list"></div>
+      <div class="field"><label for="vet-what">What</label><input id="vet-what" placeholder="e.g. Rabies booster"></div>
+      <div class="grid-2">
+        <div class="field"><label for="vet-pet">Dog</label><select id="vet-pet"></select></div>
+        <div class="field"><label for="vet-date">Date</label><input id="vet-date" type="date"></div>
+      </div>
+      <button class="btn block" id="vet-add">Log it</button>
+    </div>
+
+    <div class="disclaimer">
+      <strong>Keep your vet in the loop.</strong> This log helps you remember — it doesn't
+      replace veterinary records or advice. Bring it to appointments!
+    </div>
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/pets.js"></script>
+<script>
+PLS.init("index.html");
+(function () {
+  if (!PLS.isPaid()) {
+    document.getElementById("gate").innerHTML = PLS.upgradeNudge("Health records & medication reminders");
+    return;
+  }
+  document.getElementById("records").style.display = "block";
+
+  function load(k) { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) { return []; } }
+  function save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+
+  var pets = PLS.Pets.getAll();
+  ["med-pet", "vet-pet"].forEach(function (id) {
+    var sel = document.getElementById(id);
+    sel.innerHTML = pets.length
+      ? pets.map(function (p) { return '<option value="' + p.id + '">' + PLS.esc(p.name) + "</option>"; }).join("")
+      : '<option value="">Add a dog first</option>';
+  });
+
+  function renderMeds() {
+    var meds = load("pls_meds");
+    document.getElementById("med-list").innerHTML = meds.length ? meds.map(function (m, i) {
+      var p = pets.find(function (x) { return x.id === m.petId; });
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">' +
+        "<span>💊 <strong>" + PLS.esc(m.name) + "</strong> · " + PLS.esc(p ? p.name : "?") + " · " + PLS.esc(m.time) + " daily</span>" +
+        '<button class="btn small secondary" data-del="' + i + '">Done</button></div>';
+    }).join("") : '<p class="pet-meta">No reminders yet.</p>';
+    document.querySelectorAll("#med-list [data-del]").forEach(function (b) {
+      b.onclick = function () { var m = load("pls_meds"); m.splice(+b.getAttribute("data-del"), 1); save("pls_meds", m); renderMeds(); };
+    });
+  }
+
+  function renderVets() {
+    var logs = load("pls_vetlog");
+    document.getElementById("vet-list").innerHTML = logs.length ? logs.map(function (v, i) {
+      var p = pets.find(function (x) { return x.id === v.petId; });
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">' +
+        "<span>📋 <strong>" + PLS.esc(v.what) + "</strong> · " + PLS.esc(p ? p.name : "?") + " · " + PLS.esc(v.date) + "</span>" +
+        '<button class="btn small secondary" data-del="' + i + '">✕</button></div>';
+    }).join("") : '<p class="pet-meta">Nothing logged yet.</p>';
+    document.querySelectorAll("#vet-list [data-del]").forEach(function (b) {
+      b.onclick = function () { var l = load("pls_vetlog"); l.splice(+b.getAttribute("data-del"), 1); save("pls_vetlog", l); renderVets(); };
+    });
+  }
+
+  document.getElementById("med-add").onclick = function () {
+    var name = document.getElementById("med-name").value.trim();
+    if (!name) return;
+    var meds = load("pls_meds");
+    meds.push({ name: name, petId: document.getElementById("med-pet").value, time: document.getElementById("med-time").value });
+    save("pls_meds", meds);
+    document.getElementById("med-name").value = "";
+    renderMeds();
+  };
+  document.getElementById("vet-add").onclick = function () {
+    var what = document.getElementById("vet-what").value.trim();
+    if (!what) return;
+    var logs = load("pls_vetlog");
+    logs.push({ what: what, petId: document.getElementById("vet-pet").value, date: document.getElementById("vet-date").value });
+    save("pls_vetlog", logs);
+    document.getElementById("vet-what").value = "";
+    renderVets();
+  };
+
+  renderMeds(); renderVets();
+})();
+</script>
+</body>
+</html>
