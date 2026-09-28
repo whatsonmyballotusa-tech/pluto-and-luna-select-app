@@ -20,14 +20,6 @@
   <div class="forum-cat" id="cat-filter"></div>
   <div class="product-grid" id="products"></div>
 
-  <div class="card" id="cart-card" style="display:none">
-    <h2>🧺 Your cart (<span id="cart-count">0</span>)</h2>
-    <div id="cart-lines"></div>
-    <p style="font-size:18px;font-weight:800;margin:8px 0">Total: <span id="cart-total">$0.00</span></p>
-    <button class="btn block" id="checkout-btn">Checkout securely →</button>
-    <p class="hint" style="font-size:12px;color:var(--brown-soft);margin-top:8px">Checkout always happens on Shopify's secure hosted page — we never see your card.</p>
-  </div>
-
   <div class="card">
     <h2>⭐ Plus members save 10%</h2>
     <p>Pluto &amp; Luna Plus members get 10% off every order, automatically at checkout.</p>
@@ -37,12 +29,11 @@
 
 <script src="js/app.js"></script>
 <script src="js/store.js"></script>
+<script src="js/cart.js"></script>
 <script>
 PLS.init("shop.html");
 (function () {
   var filter = "all", query = "";
-  var cart = [];
-  try { cart = JSON.parse(localStorage.getItem("pls_cart") || "[]"); } catch (e) {}
 
   function money(n) { return "$" + n.toFixed(2); }
 
@@ -87,11 +78,8 @@ PLS.init("shop.html");
 
         document.querySelectorAll("[data-add]").forEach(function (b) {
           b.onclick = function () {
-            var id = b.getAttribute("data-add");
-            var line = cart.find(function (l) { return l.id === id; });
-            if (line) line.qty++; else cart.push({ id: id, qty: 1 });
-            localStorage.setItem("pls_cart", JSON.stringify(cart));
-            renderCart();
+            // The shared cart module owns the cart + toast + drawer.
+            PLS.Cart.add(b.getAttribute("data-add"), 1);
           };
         });
     }).catch(function () {
@@ -100,43 +88,6 @@ PLS.init("shop.html");
     });
   }
 
-  function renderCart() {
-    var card = document.getElementById("cart-card");
-    if (!cart.length) { card.style.display = "none"; return; }
-    card.style.display = "block";
-    var total = 0, count = 0;
-    var proms = cart.map(function (l) { return PLS.Store.getProduct(l.id).then(function (p) { return { p: p, qty: l.qty }; }); });
-    Promise.all(proms).then(function (lines) {
-      document.getElementById("cart-lines").innerHTML = lines.map(function (x) {
-        total += x.p.price * x.qty; count += x.qty;
-        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)">' +
-          '<span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:36px;height:36px;border-radius:8px;overflow:hidden;background:var(--amber-soft);display:inline-flex;align-items:center;justify-content:center;flex:none">' +
-          pimg(x.p, 36) + "</span>" +
-          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + PLS.esc(x.p.name) + " × " + x.qty + "</span></span>" +
-          "<strong>" + money(x.p.price * x.qty) + "</strong></div>";
-      }).join("");
-      document.getElementById("cart-count").textContent = count;
-      document.getElementById("cart-total").textContent = money(total);
-    }).catch(function () {
-      document.getElementById("cart-lines").innerHTML =
-        '<p style="font-size:13px;color:var(--brown-soft)">Couldn\'t load cart details — try again in a moment.</p>';
-    });
-  }
-
-  document.getElementById("checkout-btn").onclick = function () {
-    var btn = this;
-    btn.disabled = true;
-    btn.textContent = "Opening secure checkout…";
-    PLS.Store.createCheckout(cart).then(function (res) {
-      // Hosted Shopify checkout — the app never sees card data.
-      window.location.href = res.url;
-    }).catch(function (err) {
-      btn.disabled = false;
-      btn.textContent = "Checkout securely →";
-      alert("Couldn't start checkout: " + (err && err.message ? err.message : "please try again."));
-    });
-  };
-
   var searchT = null;
   document.getElementById("search").addEventListener("input", function (e) {
     clearTimeout(searchT);
@@ -144,7 +95,7 @@ PLS.init("shop.html");
     searchT = setTimeout(function () { query = v; renderProducts(); }, 350);
   });
 
-  renderProducts(); renderCart();
+  renderProducts();
   PLS.Store.ready.then(function () { renderCats(); }); // categories load async from Shopify
 })();
 </script>
