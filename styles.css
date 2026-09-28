@@ -186,7 +186,7 @@ main { padding: 16px; }
 /* ---------- shop ---------- */
 .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .product { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
-.product .p-img { height: 110px; background: var(--amber-soft); display: flex; align-items: center; justify-content: center; font-size: 44px; }
+.product .p-img { height: 110px; background: var(--amber-soft); display: flex; align-items: center; justify-content: center; font-size: 44px; overflow: hidden; }
 .product .p-body { padding: 10px 12px; }
 .product .p-name { font-weight: 700; font-size: 13px; }
 .product .p-price { color: var(--amber-dark); font-weight: 800; font-size: 15px; }
@@ -227,6 +227,7 @@ main { padding: 16px; }
   height: 240px; margin: 0 -16px 12px; background: var(--amber-soft);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
+.pdp-img > img { flex: none; width: 100%; height: 100%; object-fit: cover; display: block; }
 .pdp-name { font-size: 20px; margin: 0 0 6px; line-height: 1.25; }
 .pdp-price { color: var(--amber-dark); font-weight: 800; font-size: 22px; margin-bottom: 12px; }
 .pdp-compare { text-decoration: line-through; color: var(--brown-soft); font-size: 15px; font-weight: 600; }
