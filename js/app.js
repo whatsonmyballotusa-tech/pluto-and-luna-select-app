@@ -131,6 +131,9 @@
     injectHeader();
     injectNav(page || "index.html");
     injectDisclaimer();
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    }
   }
 
   function esc(s) {
