@@ -30,6 +30,7 @@
 <script src="js/app.js"></script>
 <script src="js/store.js"></script>
 <script src="js/cart.js"></script>
+<script src="js/product.js"></script>
 <script>
 PLS.init("shop.html");
 (function () {
@@ -62,8 +63,9 @@ PLS.init("shop.html");
 
   function renderProducts() {
     PLS.Store.listProducts({ category: filter === "all" ? null : filter, query: query || null }).then(function (items) {
-      document.getElementById("products").innerHTML = items.length ? items.map(function (p) {
-        return '<div class="product"><div class="p-img">' + pimg(p) + "</div>" +
+      document.getElementById("products").innerHTML = items.length ? items.map(function (p, i) {
+        return '<div class="product" data-idx="' + i + '">' +
+          '<div class="p-img">' + pimg(p) + "</div>" +
           '<div class="p-body"><div class="p-cat">' + PLS.esc(p.category) + "</div>" +
           '<div class="p-name">' + PLS.esc(p.name) + "</div>" +
           '<div class="p-price">' + money(p.price) +
@@ -81,6 +83,23 @@ PLS.init("shop.html");
             // The shared cart module owns the cart + toast + drawer.
             PLS.Cart.add(b.getAttribute("data-add"), 1);
           };
+        });
+
+        // Tapping a card (anything but the quick-add button) opens the detail view.
+        document.querySelectorAll("#products .product").forEach(function (card) {
+          var p = items[+card.getAttribute("data-idx")];
+          if (!p) return;
+          card.style.cursor = "pointer";
+          card.setAttribute("role", "button");
+          card.setAttribute("tabindex", "0");
+          card.setAttribute("aria-label", "View details: " + p.name);
+          card.addEventListener("click", function (e) {
+            if (e.target.closest("[data-add]")) return;
+            PLS.PDP.open(p);
+          });
+          card.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); PLS.PDP.open(p); }
+          });
         });
     }).catch(function () {
       document.getElementById("products").innerHTML =
