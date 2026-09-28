@@ -122,6 +122,7 @@
     el.innerHTML = "🐾 Pluto &amp; Luna Select · " +
       "Content is educational only and <strong>not veterinary advice</strong>. " +
       "Always consult your veterinarian. " +
+      'Questions? <a href="mailto:plutoandlunaselect@gmail.com">plutoandlunaselect@gmail.com</a> · ' +
       'AI posts are labeled — see <a href="community.html#ai-policy">our AI policy</a>.';
     document.body.appendChild(el);
   }
