@@ -2,8 +2,10 @@
  *
  * ONE cart, ONE checkout path for the whole app.
  *
- *  - Cart state: a single localStorage cart ("pls_cart") -> [{ id: productGID, qty }].
+ *  - Cart state: a single localStorage cart ("pls_cart") -> [{ id: productGID, qty, variantId? }].
  *    Product details (name/price/image) always come live from PLS.Store (Shopify).
+ *    variantId is the Shopify variant chosen on the product detail view (optional;
+ *    older lines without it use the product's default sellable variant).
  *  - Cart UI: a single drawer, opened from the header cart button injected on every
  *    page. No page may implement its own cart card or its own checkout button.
  *  - Checkout: PLS.Cart.checkout() is the ONLY checkout action. It builds one
@@ -39,34 +41,34 @@
     emit();
   }
 
-  function findLine(lines, id) {
+  function findLine(lines, id, variantId) {
     for (var i = 0; i < lines.length; i++) {
-      if (lines[i].id === id) return lines[i];
+      if (lines[i].id === id && (lines[i].variantId || null) === (variantId || null)) return lines[i];
     }
     return null;
   }
 
-  function add(id, qty) {
+  function add(id, qty, variantId) {
     qty = Math.max(1, qty | 0 || 1);
     var lines = load();
-    var l = findLine(lines, id);
+    var l = findLine(lines, id, variantId);
     if (l) l.qty = Math.min(MAX_QTY, l.qty + qty);
-    else lines.push({ id: id, qty: qty });
+    else lines.push({ id: id, qty: qty, variantId: variantId || null });
     save(lines);
     toast("Added to cart", "View cart", openDrawer);
   }
 
-  function setQty(id, qty) {
+  function setQty(id, qty, variantId) {
     qty = qty | 0;
     var lines = load();
-    var l = findLine(lines, id);
+    var l = findLine(lines, id, variantId);
     if (!l) return;
     if (qty <= 0) lines.splice(lines.indexOf(l), 1);
     else l.qty = Math.min(MAX_QTY, qty);
     save(lines);
   }
 
-  function removeLine(id) { setQty(id, 0); }
+  function removeLine(id, variantId) { setQty(id, 0, variantId); }
   function clear() { save([]); }
 
   function count() {
@@ -126,10 +128,12 @@
       btn.id = "pls-cart-btn";
       btn.className = "cart-btn";
       btn.setAttribute("aria-label", "Open cart");
-      btn.innerHTML = '🛒<span class="cart-badge" id="pls-cart-badge" hidden>0</span>';
+      btn.innerHTML = '🛒<span class="cart-badge" id="pls-cart-badge" hidden>0</span>' +
+        '<span class="cart-total" id="pls-cart-total" hidden></span>';
       btn.onclick = openDrawer;
       header.appendChild(btn);
       el.badge = btn.querySelector("#pls-cart-badge");
+      el.total = btn.querySelector("#pls-cart-total");
     }
 
     // 2. Overlay + drawer + toast (built once).
@@ -171,12 +175,13 @@
         var t = e.target && e.target.closest ? e.target.closest("[data-act]") : null;
         if (!t) return;
         var id = t.getAttribute("data-id");
-        var cur = findLine(load(), id);
+        var variantId = t.getAttribute("data-variant") || null;
+        var cur = findLine(load(), id, variantId);
         var q = cur ? cur.qty : 0;
         var act = t.getAttribute("data-act");
-        if (act === "inc") setQty(id, q + 1);
-        else if (act === "dec") setQty(id, q - 1);
-        else if (act === "rm") removeLine(id);
+        if (act === "inc") setQty(id, q + 1, variantId);
+        else if (act === "dec") setQty(id, q - 1, variantId);
+        else if (act === "rm") removeLine(id, variantId);
       });
 
       var toastEl = document.createElement("div");
@@ -199,6 +204,28 @@
     el.badge.hidden = n === 0;
   }
 
+  // Live running total on the header cart button. Prices come from the same
+  // cached Store lookups the drawer uses — no extra network when cached.
+  var totalToken = 0;
+  function renderTotal() {
+    if (!el.total) return;
+    totalToken++; // invalidate any in-flight lookup, even when the cart is now empty
+    var lines = load();
+    if (!lines.length) { el.total.hidden = true; return; }
+    var t = totalToken;
+    Promise.all(lines.map(function (l) { return PLS.Store.getProduct(l.id); }))
+      .then(function (ps) {
+        if (t !== totalToken) return; // superseded
+        var sum = 0;
+        ps.forEach(function (p, i) {
+          if (p) sum += lineUnitPrice(lines[i], p) * lines[i].qty;
+        });
+        el.total.textContent = money(sum);
+        el.total.hidden = false;
+      })
+      .catch(function () { if (t === totalToken) el.total.hidden = true; });
+  }
+
   function pimg(p, size) {
     size = size || 44;
     if (p.image && p.image.indexOf("http") === 0) {
@@ -208,18 +235,41 @@
     return '<span style="font-size:' + Math.round(size * 0.4) + 'px">🐾</span>';
   }
 
+  // The variant label for a cart line, e.g. "Size: Large" — empty for default variant.
+  function variantLabel(l, p) {
+    if (!l.variantId || !p.variants) return "";
+    var v = p.variants.filter(function (x) { return x.id === l.variantId; })[0];
+    if (!v) return "";
+    var names = Object.keys(v.options || {});
+    return names.length ? names.map(function (n) { return n + ": " + v.options[n]; }).join(" · ") : v.title;
+  }
+
+  // Unit price for a line: the chosen variant's price when present, else the
+  // product's default price.
+  function lineUnitPrice(l, p) {
+    if (l.variantId && p.variants) {
+      var v = p.variants.filter(function (x) { return x.id === l.variantId; })[0];
+      if (v) return v.price;
+    }
+    return p.price;
+  }
+
   function lineRow(l, p) {
+    var vAttr = l.variantId ? ' data-variant="' + esc(l.variantId) + '"' : "";
+    var vLabel = variantLabel(l, p);
+    var unit = lineUnitPrice(l, p);
     return '<div class="cart-line">' +
       '<span class="cart-thumb">' + pimg(p, 44) + "</span>" +
       '<span class="cart-line-info"><strong>' + esc(p.name) + "</strong>" +
-      '<span class="cart-line-price">' + money(p.price) + " each</span></span>" +
+      (vLabel ? '<span class="cart-line-variant">' + esc(vLabel) + "</span>" : "") +
+      '<span class="cart-line-price">' + money(unit) + " each</span></span>" +
       '<span class="qty-stepper">' +
-      '<button data-act="dec" data-id="' + esc(l.id) + '" aria-label="Decrease quantity">−</button>' +
+      '<button data-act="dec" data-id="' + esc(l.id) + '"' + vAttr + ' aria-label="Decrease quantity">−</button>' +
       "<span>" + (l.qty | 0) + "</span>" +
-      '<button data-act="inc" data-id="' + esc(l.id) + '" aria-label="Increase quantity">+</button>' +
+      '<button data-act="inc" data-id="' + esc(l.id) + '"' + vAttr + ' aria-label="Increase quantity">+</button>' +
       "</span>" +
-      '<span class="cart-line-total">' + money(p.price * l.qty) + "</span>" +
-      '<button class="cart-rm" data-act="rm" data-id="' + esc(l.id) + '" aria-label="Remove item">✕</button>' +
+      '<span class="cart-line-total">' + money(unit * l.qty) + "</span>" +
+      '<button class="cart-rm" data-act="rm" data-id="' + esc(l.id) + '"' + vAttr + ' aria-label="Remove item">✕</button>' +
       "</div>";
   }
 
@@ -261,7 +311,7 @@
       var subtotal = 0, html = "";
       rows.forEach(function (r) {
         if (!r.p || !r.p.variantId) { html += unavailableRow(r.line); return; }
-        subtotal += r.p.price * r.line.qty;
+        subtotal += lineUnitPrice(r.line, r.p) * r.line.qty;
         html += lineRow(r.line, r.p);
       });
       el.body.innerHTML = html;
@@ -322,8 +372,10 @@
     if (!window.PLS || !PLS.Store) return; // store.js must be included before cart.js
     buildUI();
     renderBadge();
+    renderTotal();
     onChange(function () {
       renderBadge();
+      renderTotal();
       if (drawerOpen) renderDrawer();
     });
   }
