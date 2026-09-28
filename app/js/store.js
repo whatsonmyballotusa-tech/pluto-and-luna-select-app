@@ -10,8 +10,10 @@
  *
  * Product shape:
  *   { id (product GID), name, category, price, compareAtPrice?, image (URL|null),
- *     imageAlt, description, tags[], rating (null — no native reviews), reviews (null),
- *     inStock, variantId (first sellable variant GID, used for checkout) }
+ *     imageAlt, description (full), tags[], rating (null — no native reviews),
+ *     reviews (null), inStock, variantId (first sellable variant GID, used for
+ *     checkout), variants: [{ id, title, price, compareAtPrice?, availableForSale,
+ *     options: { OptionName: value } }] }
  *
  * AUTH: public Storefront API token (designed for client-side use).
  *   Endpoint: https://aqt333-x1.myshopify.com/api/2026-01/graphql.json
@@ -62,7 +64,7 @@
     "tags",
     "featuredImage { url altText }",
     "priceRange { minVariantPrice { amount } }",
-    "variants(first: 10) { edges { node { id price { amount } compareAtPrice { amount } availableForSale } } }",
+    "variants(first: 10) { edges { node { id title price { amount } compareAtPrice { amount } availableForSale selectedOptions { name value } } } }",
     "collections(first: 5) { edges { node { title handle } } }",
   ].join(" ");
 
@@ -82,6 +84,18 @@
     var cols = (node.collections.edges || [])
       .map(function (e) { return e.node; })
       .filter(function (c) { return c.handle !== "shop-all"; });
+    var variantList = variants.map(function (v) {
+      var opts = {};
+      (v.selectedOptions || []).forEach(function (o) { opts[o.name] = o.value; });
+      return {
+        id: v.id,
+        title: v.title,
+        price: parseFloat(v.price.amount),
+        compareAtPrice: v.compareAtPrice ? parseFloat(v.compareAtPrice.amount) : null,
+        availableForSale: !!v.availableForSale,
+        options: opts,
+      };
+    });
     return {
       id: node.id,
       name: node.title,
@@ -90,12 +104,13 @@
       compareAtPrice: compareAt,
       image: node.featuredImage ? node.featuredImage.url : null,
       imageAlt: node.featuredImage ? node.featuredImage.altText : null,
-      description: (node.description || "").slice(0, 300),
+      description: node.description || "",
       tags: node.tags || [],
       rating: null,   // Shopify has no native ratings — UI hides the rating row
       reviews: null,
       inStock: sellable.length > 0,
       variantId: chosen ? chosen.id : null,
+      variants: variantList,
     };
   }
 
@@ -153,14 +168,29 @@
 
   // Builds a Shopify cart from app cart lines and returns the HOSTED checkout URL.
   // Card data is only ever entered on Shopify's page — never in this app.
+  // A line may carry variantId (chosen on the product detail view); it is
+  // honored only if that variant is still sellable, otherwise the product's
+  // default sellable variant is used.
+  function effectiveVariantId(p, variantId) {
+    if (variantId && p.variants) {
+      var ok = p.variants.filter(function (v) { return v.id === variantId && v.availableForSale; })[0];
+      if (ok) return ok.id;
+    }
+    return p.variantId;
+  }
+
   function createCheckout(items) {
     var lookups = (items || []).map(function (l) {
-      return getProduct(l.id).then(function (p) { return { p: p, qty: l.qty || 1 }; });
+      return getProduct(l.id).then(function (p) { return { p: p, qty: l.qty || 1, variantId: l.variantId }; });
     });
     return Promise.all(lookups).then(function (lines) {
       var cartLines = lines
-        .filter(function (x) { return x.p && x.p.variantId; })
-        .map(function (x) { return { merchandiseId: x.p.variantId, quantity: x.qty }; });
+        .map(function (x) {
+          if (!x.p) return null;
+          var vid = effectiveVariantId(x.p, x.variantId);
+          return vid ? { merchandiseId: vid, quantity: x.qty } : null;
+        })
+        .filter(function (x) { return x; });
       if (!cartLines.length) throw new Error("Your cart is empty or those items are no longer available.");
       var mutation = "mutation CartCreate($lines: [CartLineInput!]!) {" +
         " cartCreate(input: { lines: $lines }) {" +
