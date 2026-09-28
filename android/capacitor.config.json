@@ -1,0 +1,12 @@
+{
+  "appId": "com.plutoandlunaselect.app",
+  "appName": "Pluto and Luna Select",
+  "webDir": "www",
+  "server": {
+    "url": "https://whatsonmyballotusa-tech.github.io/pluto-and-luna-select-app/",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
