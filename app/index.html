@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<meta name="description" content="Pluto & Luna Select — one app for your dog's food, health, training, and community.">
+<title>Pluto & Luna Select — One pack. One app.</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <div class="hero">
+    <h1>🐾 Welcome to the pack</h1>
+    <p>Food scanner, vet-reviewed guides, homemade recipes, training help, community — and our store. Everything for your dog, in one place.</p>
+  </div>
+
+  <div class="card" id="pet-spotlight" style="display:none">
+    <h2 id="spotlight-name"></h2>
+    <div id="spotlight-warnings"></div>
+    <p><a href="pets.html" class="btn small secondary">Manage pets</a></p>
+  </div>
+
+  <div class="card" id="no-pet-cta">
+    <h2>👋 Start with your dog</h2>
+    <p>Add your pup's profile and everything personalizes — scanner results, recipes, guides.</p>
+    <p><a class="btn" href="pets.html">Add your first dog</a></p>
+  </div>
+
+  <h2 style="margin: 18px 0 10px;">Explore</h2>
+  <div class="grid-2">
+    <a class="feature-tile" href="scanner.html"><span class="icon">📷</span><strong>Food Scanner</strong><span>Is this food good? Scan &amp; know</span></a>
+    <a class="feature-tile" href="knowledge.html"><span class="icon">📚</span><strong>Care Guides</strong><span>Safety, training, health</span></a>
+    <a class="feature-tile" href="recipes.html"><span class="icon">🦴</span><strong>Recipes</strong><span>Homemade treats &amp; meals</span></a>
+    <a class="feature-tile" href="community.html"><span class="icon">💬</span><strong>The Pack</strong><span>Community forum</span></a>
+    <a class="feature-tile" href="pets.html"><span class="icon">🐶</span><strong>My Dogs</strong><span>Profiles &amp; needs</span></a>
+    <a class="feature-tile" href="shop.html"><span class="icon">🛒</span><strong>Shop</strong><span>Treats, toys &amp; more</span></a>
+  </div>
+
+  <div class="card" id="plus-upsell" style="margin-top:14px">
+    <h2>⭐ Pluto &amp; Luna Plus</h2>
+    <p>Unlimited scans, the <a href="planner.html">advanced nutrition planner</a>, <a href="records.html">health records with med reminders</a>, unlimited pet profiles, and 10% off the store.</p>
+    <p><a class="btn ghost" href="upgrade.html">See Plus</a></p>
+  </div>
+
+  <div class="disclaimer">
+    <strong>Not veterinary advice.</strong> Everything here is educational. Your vet knows
+    your dog — we don't. When in doubt, call them.
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/pets.js"></script>
+<script>
+PLS.init("index.html");
+(function () {
+  var pet = PLS.getActivePet();
+  if (pet) {
+    document.getElementById("no-pet-cta").style.display = "none";
+    var spot = document.getElementById("pet-spotlight");
+    spot.style.display = "block";
+    document.getElementById("spotlight-name").textContent = "🐶 " + pet.name + (pet.breed ? " · " + pet.breed : "");
+    document.getElementById("spotlight-warnings").innerHTML =
+      '<p class="pet-meta">' +
+      [pet.ageYears != null && pet.ageYears !== "" ? pet.ageYears + " yrs" : null,
+       pet.weightLbs != null && pet.weightLbs !== "" ? pet.weightLbs + " lbs" : null,
+       (pet.conditions || []).join(", ")].filter(Boolean).join(" · ") +
+      "</p>";
+  }
+  if (PLS.isPaid()) {
+    var up = document.getElementById("plus-upsell");
+    if (up) up.style.display = "none";
+  }
+})();
+</script>
+</body>
+</html>
