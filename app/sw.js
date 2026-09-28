@@ -1,10 +1,11 @@
 /* Pluto & Luna Select — service worker: cache-first shell, network-first data. */
-var CACHE = "pls-v1";
+var CACHE = "pls-v2";
 var SHELL = [
   "./", "./index.html", "./pets.html", "./scanner.html", "./knowledge.html",
   "./recipes.html", "./community.html", "./shop.html", "./upgrade.html",
   "./planner.html", "./records.html", "./styles.css",
   "./js/app.js", "./js/pets.js", "./js/scanner.js", "./js/store.js",
+  "./js/cart.js", "./js/product.js",
   "./js/knowledge.js", "./js/recipes.js", "./js/community.js",
   "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png",
 ];
