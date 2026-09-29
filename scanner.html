@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>Food Scanner — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">📷 Food Scanner</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">Scan a bag of food or treats — get a verdict: recommended, good, caution, or avoid. Personalized for your dog.</p>
+
+  <div class="notice stub" id="methodology-notice">
+    🧪 <strong>Scoring rubric: DRAFT.</strong> The 15-factor methodology is implemented
+    but <strong>pending vet-nutritionist review</strong>. Treat results as educational,
+    not veterinary advice.
+  </div>
+
+  <div class="card" id="scan-card">
+    <div id="budget-line" style="margin-bottom:12px"></div>
+    <div class="field">
+      <label for="scan-input">Product name, UPC, or ingredients</label>
+      <input id="scan-input" placeholder='e.g. "Salmon & Sweet Potato Kibble" or a UPC'>
+      <div class="hint">Camera OCR lands with the methodology crew — for now, type what the bag says.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn block" id="scan-btn">Analyze</button>
+      <button class="btn secondary" id="demo-btn" title="Try a demo">Demo</button>
+    </div>
+  </div>
+
+  <div id="scan-limit"></div>
+  <div id="result"></div>
+
+  <div class="card">
+    <h2>How scoring works</h2>
+    <ul style="padding-left:20px;font-size:14px">
+      <li>Named animal protein first = good. Vague "meat meal" = not good.</li>
+      <li>Artificial colors, flavors &amp; preservatives lower the score.</li>
+      <li><strong>Xylitol (birch sugar)</strong> = instant avoid + toxicity alert.</li>
+      <li>AAFCO nutritional adequacy statement = verified completeness.</li>
+      <li>Every point is explained — the "why" list cites the exact ingredient.</li>
+      <li>Your dog's conditions (allergies, kidney disease…) personalize every result.</li>
+    </ul>
+  </div>
+
+  <div class="disclaimer">
+    <strong>Not veterinary advice.</strong> The scanner is a shopping aid, not a diagnosis.
+    Final food decisions belong to you and your vet.
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/pets.js"></script>
+<script src="js/scanner.js"></script>
+<script>
+PLS.init("scanner.html");
+(function () {
+  var resultEl = document.getElementById("result");
+  var budgetEl = document.getElementById("budget-line");
+
+  function renderBudget() {
+    var left = PLS.scansRemaining();
+    var used = PLS.scansUsedThisWeek();
+    budgetEl.innerHTML = PLS.isPaid()
+      ? '<span class="badge good">PLUS</span> Unlimited scans'
+      : '<span class="badge caution">' + left + " of " + PLS.FREE_LIMITS.scansPerWeek + " free scans left</span> this week";
+    document.getElementById("scan-limit").innerHTML =
+      (!PLS.isPaid() && left <= 0) ? PLS.upgradeNudge("Unlimited food scans") : "";
+    document.getElementById("scan-btn").disabled = !PLS.isPaid() && left <= 0;
+  }
+
+  var VERDICT_UI = {
+    recommended: { badge: "good", icon: "🌟", color: "var(--sage)" },
+    good:        { badge: "good", icon: "👍", color: "var(--sage)" },
+    caution:     { badge: "caution", icon: "⚠️", color: "#B7791F" },
+    avoid:       { badge: "avoid", icon: "🛑", color: "var(--red)" },
+    unknown:     { badge: "caution", icon: "❓", color: "#B7791F" },
+  };
+
+  var PROVENANCE_UI = {
+    verified:     { icon: "✅", text: "Verified product data", cls: "good" },
+    label:        { icon: "🏷️", text: "Label-derived — not yet verified", cls: "caution" },
+    insufficient: { icon: "❓", text: "Insufficient data — we won't guess", cls: "caution" },
+  };
+
+  function renderAnalysis(a) {
+    var ui = VERDICT_UI[a.verdict] || VERDICT_UI.unknown;
+    var prov = PROVENANCE_UI[a.provenance] || PROVENANCE_UI.insufficient;
+    var html = '<div class="card scan-result">' +
+      '<div class="verdict">' + ui.icon + "</div>" +
+      '<span class="badge ' + ui.badge + '">' + a.verdict.toUpperCase() + "</span> " +
+      '<span class="badge ' + prov.cls + '">' + prov.icon + " " + prov.text + "</span>";
+    if (a.score != null) {
+      html += '<div class="scan-meter"><div class="fill" style="width:' + a.score + "%;background:" + ui.color + '"></div></div>' +
+        "<p><strong>Score: " + a.score + "/100</strong></p>";
+    }
+    html += "<p>" + PLS.esc(a.summary) + "</p>";
+    if (a.toxicityAlert) {
+      html += '<div class="notice avoid" style="text-align:left">☠️ <strong>Toxicity alert:</strong> ' + PLS.esc(a.toxicityAlert) + "</div>";
+    }
+    if (a.factors && a.factors.length) {
+      html += "<h3 style='margin-top:12px;text-align:left'>🔍 Why this score</h3><ul style='text-align:left;padding-left:20px'>";
+      a.factors.forEach(function (f) {
+        var sign = f.points > 0 ? "+" + f.points : String(f.points);
+        html += "<li><strong>" + sign + "</strong> — " + PLS.esc(f.text) + "</li>";
+      });
+      html += "</ul>";
+    }
+    if (a.recall) {
+      html += '<p style="font-size:12px;text-align:left">🔎 <strong>Recall check:</strong> ' + PLS.esc(a.recall.note) + "</p>";
+    }
+    if (a.aafcoUserConfirmed) {
+      html += '<p style="font-size:12px;text-align:left">📋 AAFCO status was confirmed by you from the package — not in the product database.</p>';
+    }
+    if (a.aafcoCapped) {
+      html += '<div class="card" id="aafco-confirm-box" style="text-align:left;margin-top:12px">' +
+        "<p><strong>📋 We couldn't verify completeness.</strong> This product's database entry has no AAFCO adequacy statement, so the score is capped at Caution. " +
+        'Does the bag say <em>"formulated to meet AAFCO nutrient profiles"</em> or <em>"complete and balanced"</em>?</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn" data-aafco="yes">Yes, it\'s on the bag</button>' +
+        '<button class="btn secondary" data-aafco="no">No</button>' +
+        '<button class="btn secondary" data-aafco="unsure">Unsure</button>' +
+        "</div></div>";
+    }
+    html += '<div class="notice" style="text-align:left">🐶 <strong>For your dog:</strong> ' + PLS.esc(a.personalized) + "</div>";
+    if (a.sources && a.sources.length) {
+      html += '<p style="font-size:11px;color:var(--brown-soft);text-align:left">' + a.sources.map(PLS.esc).join("<br>") + "</p>";
+    }
+    html += '<p style="font-size:12px;color:var(--brown-soft)">Methodology v1 (DRAFT) — pending vet-nutritionist review. Educational analysis, not veterinary advice.</p>';
+    html += "</div>";
+    return html;
+  }
+
+  var lastInput = null; // the input behind the currently rendered analysis
+
+  function doAnalyze(input, freeReRun) {
+    if (!freeReRun && !PLS.isPaid() && PLS.scansRemaining() <= 0) { renderBudget(); return; }
+    resultEl.innerHTML = '<div class="card"><p>🔍 Sniffing out the details…</p></div>';
+    PLS.Scanner.analyzeProduct(input, PLS.getActivePet()).then(function (a) {
+      if (!freeReRun) PLS.recordScan(); // confirmation re-runs don't cost a scan
+      lastInput = input;
+      resultEl.innerHTML = renderAnalysis(a);
+      renderBudget();
+      resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }
+
+  function runScan(label) {
+    var looksLikeUpc = /^[0-9]{8,14}$/.test(label.replace(/[\s-]/g, ""));
+    doAnalyze(looksLikeUpc ? { upc: label } : { productName: label }, false);
+  }
+
+  // AAFCO confirmation: only an explicit "Yes" lifts the cap. No/Unsure keep it.
+  resultEl.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("[data-aafco]") : null;
+    if (!b || !lastInput) return;
+    if (b.getAttribute("data-aafco") === "yes") {
+      lastInput.aafcoUserConfirmed = true;
+      doAnalyze(lastInput, true);
+    } else {
+      var box = document.getElementById("aafco-confirm-box");
+      if (box) box.innerHTML = "<p>⚠️ Kept at Caution — without an AAFCO statement on the bag, we won't assume it's complete.</p>";
+    }
+  });
+
+  document.getElementById("scan-btn").onclick = function () {
+    var v = document.getElementById("scan-input").value.trim();
+    if (!v) { document.getElementById("scan-input").focus(); return; }
+    runScan(v);
+  };
+  document.getElementById("demo-btn").onclick = function () {
+    document.getElementById("scan-input").value = "Salmon & Sweet Potato Kibble";
+    runScan("Salmon & Sweet Potato Kibble");
+  };
+  renderBudget();
+})();
+</script>
+</body>
+</html>
