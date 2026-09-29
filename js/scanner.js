@@ -99,6 +99,27 @@
   var LEGUMES = ["pea", "peas", "lentil", "lentils", "chickpea", "chickpeas",
     "legume", "legumes", "bean", "beans"];
 
+  /* ---------- canned demo product (A1) ----------
+   * The demo button routes through this synthetic ingredient list so the demo
+   * always resolves to a full, successful analysis instead of the
+   * name-only path that can only return "insufficient data". Deliberately
+   * exercises all three red-flag tiers:
+   *   OK tier:      named protein first (chicken), AAFCO statement, GA, country
+   *   CAUTION tier: animal fat (unspecified), animal digest, Red 40
+   *   AVOID tier:   BHA (evidence-calibrated note, no emergency language)
+   * Demo scans are quota-free — the caller skips recordScan() for them.
+   * This is a synthetic example, never a real product recommendation. */
+  var DEMO_PRODUCT = {
+    productName: "Demo Kibble — sample recipe",
+    brand: "Demo Dog Food Co.",
+    productType: "food",
+    ingredientsText: "Chicken, chicken meal, brown rice, oatmeal, animal fat, dried beet pulp, flaxseed, animal digest, Red 40, BHA",
+    ga: { protein: 26, fat: 14, fiber: 4, moisture: 10 },
+    aafcoStatement: "Formulated to meet the nutritional levels established by the AAFCO Dog Food Nutrient Profiles for adult maintenance.",
+    calorieContent: "3,650 kcal/kg (calculated)",
+    country: "USA",
+  };
+
   /* ---------- red-flag ingredient database ---------- */
   // Canonical data: research/red-flag-ingredients.json (18 entries, v1.0).
   // RED_FLAG_DB is generated from it by research/sync-red-flags.js — do not hand-edit.
@@ -711,6 +732,7 @@
     function finish(p, prov) {
       var analysis = buildAnalysis(p, pet, prov);
       if (analysis.verdict === "unknown") return Promise.resolve(analysis);
+      if (input.isDemo) analysis.demo = true; // canned demo — labeled in the UI
       var brand = p.brand || "";
       return checkRecalls(brand).then(function (rec) {
         analysis.recall = rec;
@@ -768,6 +790,7 @@
     parseAafco: parseAafco, // exposed for testing
     matchRedFlags: matchRedFlags, // exposed for testing
     scanRedFlags: scanRedFlags,   // exposed for testing
+    DEMO_PRODUCT: DEMO_PRODUCT,   // canned demo product (A1) — quota-free scans
     RED_FLAG_DB: RED_FLAG_DB,
   };
   if (typeof window !== "undefined") {
