@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>Care Guides — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">📚 Care Guides</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">Safety, nutrition, training, health — the wisdom every dog owner needs. Free forever.</p>
+
+  <div class="forum-cat" id="cat-filter"></div>
+  <div id="guides"></div>
+
+  <div class="disclaimer">
+    <strong>Not veterinary advice.</strong> These guides are educational and compiled from
+    public veterinary sources. Every guide is marked with its review status — nothing here
+    replaces your veterinarian.
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/knowledge.js"></script>
+<script>
+PLS.init("knowledge.html");
+(function () {
+  var filter = "all";
+  var cats = [{ id: "all", icon: "🐾", label: "All" }].concat(PLS.Knowledge.CATEGORIES);
+
+  function reviewBadge(g) {
+    return g.vetReview === "reviewed"
+      ? '<span class="badge verified">✓ Vet-reviewed</span>'
+      : '<span class="badge pending">Vet review pending</span>';
+  }
+  function sourcesLine(g) {
+    return '<p style="font-size:12px;color:var(--brown-soft);margin-top:8px">Sources: ' + g.sources.map(PLS.esc).join(" · ") + "</p>";
+  }
+
+  function toxicRows(items) {
+    return items.map(function (it) {
+      return '<div class="toxic-row"><span class="dot ' + it.severity + '"></span><div>' +
+        "<strong>" + PLS.esc(it.name) + '</strong> <span class="sev ' + it.severity + '">' + it.severity.toUpperCase() + "</span>" +
+        '<div style="font-size:13px;color:var(--brown-soft)">' + PLS.esc(it.detail) + "</div></div></div>";
+    }).join("");
+  }
+
+  function guideBody(g) {
+    var html = '<div class="guide-body">';
+    if (g.intro) html += "<p><strong>" + PLS.esc(g.intro) + "</strong></p>";
+    if (g.items) html += toxicRows(g.items);
+    if (g.sections) html += g.sections.map(function (s) {
+      return "<h3 style='margin-top:12px'>" + PLS.esc(s.h) + "</h3>" + s.body;
+    }).join("");
+    html += reviewBadge(g) + sourcesLine(g);
+    html += "</div>";
+    return html;
+  }
+
+  function render() {
+    var fc = document.getElementById("cat-filter");
+    fc.innerHTML = "";
+    cats.forEach(function (c) {
+      var s = document.createElement("span");
+      s.className = "chip" + (filter === c.id ? " selected" : "");
+      s.textContent = c.icon + " " + c.label;
+      s.onclick = function () { filter = c.id; render(); };
+      fc.appendChild(s);
+    });
+    var guides = PLS.Knowledge.GUIDES.filter(function (g) {
+      return filter === "all" || g.category === filter;
+    });
+    document.getElementById("guides").innerHTML = guides.map(function (g) {
+      return '<details class="guide"><summary>' + g.icon + " " + PLS.esc(g.title) + "</summary>" + guideBody(g) + "</details>";
+    }).join("");
+  }
+  render();
+})();
+</script>
+</body>
+</html>
