@@ -1,0 +1,29 @@
+{
+  "background_color": "#FFF8F0",
+  "description": "One app for your dog's food, health, training, community, and our store.",
+  "display": "standalone",
+  "icons": [
+    {
+      "sizes": "192x192",
+      "src": "icons/icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "512x512",
+      "src": "icons/icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "icons/icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Pluto & Luna Select",
+  "short_name": "Pluto & Luna",
+  "start_url": "https://whatsonmyballotusa-tech.github.io/pluto-and-luna-select-app/index.html",
+  "theme_color": "#3E2C23",
+  "scope": "https://whatsonmyballotusa-tech.github.io/pluto-and-luna-select-app/",
+  "id": "https://whatsonmyballotusa-tech.github.io/pluto-and-luna-select-app/"
+}
