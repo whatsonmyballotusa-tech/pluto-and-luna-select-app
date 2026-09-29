@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>The Pack — Community — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">💬 The Pack</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">Dog people talking dog things. Be kind, no medical diagnoses, no spam.</p>
+
+  <div class="ai-disclosure" id="ai-policy">
+    🤖 <strong>Our AI policy:</strong> our assistant <strong>Luna</strong> sometimes starts
+    discussions or answers questions here — and <strong>every AI post is permanently
+    labeled "Posted by Luna, Pluto &amp; Luna Select assistant."</strong> We never present
+    bots as humans. <a href="agents/posting-spec.md">Read the full agent policy →</a>
+  </div>
+
+  <div class="forum-cat" id="cat-filter"></div>
+  <div id="posts"></div>
+
+  <div class="card">
+    <h2>Start a discussion</h2>
+    <div class="field"><input id="new-title" placeholder="Give it a title…" maxlength="80"></div>
+    <div class="field"><textarea id="new-body" rows="3" placeholder="What's on your mind, dog parent?" maxlength="1000"></textarea></div>
+    <div class="field">
+      <select id="new-cat"></select>
+    </div>
+    <button class="btn block" id="post-btn">Post to the Pack</button>
+    <p class="hint" style="font-size:12px;color:var(--brown-soft);margin-top:8px">Demo: posts save on this device. Real accounts + moderation arrive with the backend.</p>
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/community.js"></script>
+<script>
+PLS.init("community.html");
+(function () {
+  var filter = "all";
+  var userPosts = [];
+  try { userPosts = JSON.parse(localStorage.getItem("pls_forum_user") || "[]"); } catch (e) {}
+
+  function allPosts() { return userPosts.concat(PLS.Forum.SEED_POSTS); }
+
+  function authorLine(p) {
+    var badge = p.authorType === "ai"
+      ? ' <span class="badge ai">🤖 ' + PLS.esc(PLS.Forum.AI_LABEL) + "</span>"
+      : ' <span class="badge good">Pack member</span>';
+    return '<div class="post-head"><span class="author">' + PLS.esc(p.author) + "</span>" + badge +
+      '<span class="time">' + PLS.esc(p.time) + "</span></div>";
+  }
+
+  function render() {
+    var cats = [{ id: "all", icon: "🐾", label: "All" }].concat(PLS.Forum.CATEGORIES);
+    var fc = document.getElementById("cat-filter");
+    fc.innerHTML = "";
+    cats.forEach(function (c) {
+      var s = document.createElement("span");
+      s.className = "chip" + (filter === c.id ? " selected" : "");
+      s.textContent = c.icon + " " + c.label;
+      s.onclick = function () { filter = c.id; render(); };
+      fc.appendChild(s);
+    });
+
+    var posts = allPosts().filter(function (p) { return filter === "all" || p.category === filter; });
+    document.getElementById("posts").innerHTML = posts.length ? posts.map(function (p) {
+      var cat = PLS.Forum.CATEGORIES.find(function (c) { return c.id === p.category; });
+      var replies = (p.replies || []).map(function (r) {
+        return '<div style="margin:10px 0 0 12px;padding:10px;border-left:3px solid var(--line)">' + authorLine(r) +
+          '<div class="body">' + PLS.esc(r.body) + "</div></div>";
+      }).join("");
+      return '<div class="post">' + authorLine(p) +
+        '<div class="title">' + PLS.esc(p.title) + ' <span class="tag">' + (cat ? cat.icon + " " + cat.label : "") + "</span></div>" +
+        '<div class="body">' + PLS.esc(p.body) + "</div>" + replies +
+        '<div class="replies">💬 ' + (p.replies || []).length + " repl" + ((p.replies || []).length === 1 ? "y" : "ies") + "</div></div>";
+    }).join("") : '<div class="empty-state"><span class="icon">💬</span>Quiet here — start the conversation!</div>';
+
+    var sel = document.getElementById("new-cat");
+    if (!sel.options.length) {
+      PLS.Forum.CATEGORIES.forEach(function (c) {
+        var o = document.createElement("option");
+        o.value = c.id; o.textContent = c.icon + " " + c.label;
+        sel.appendChild(o);
+      });
+    }
+  }
+
+  document.getElementById("post-btn").onclick = function () {
+    var title = document.getElementById("new-title").value.trim();
+    var body = document.getElementById("new-body").value.trim();
+    if (!title || !body) return;
+    userPosts.unshift({
+      id: "u" + Date.now(), category: document.getElementById("new-cat").value,
+      title: title, body: body, author: "You", authorType: "human",
+      time: "just now", replies: [],
+    });
+    localStorage.setItem("pls_forum_user", JSON.stringify(userPosts));
+    document.getElementById("new-title").value = "";
+    document.getElementById("new-body").value = "";
+    filter = document.getElementById("new-cat").value;
+    render();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
