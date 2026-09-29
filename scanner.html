@@ -29,8 +29,9 @@
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn block" id="scan-btn">Analyze</button>
-      <button class="btn secondary" id="demo-btn" title="Try a demo">Demo</button>
+      <button class="btn secondary" id="demo-btn" title="Try a demo — free, doesn't use your free scans">🎬 Demo (free)</button>
     </div>
+    <p class="hint" style="margin-top:8px">The demo runs a canned sample analysis so you can see a full result — it never uses your free scans.</p>
   </div>
 
   <div id="scan-limit"></div>
@@ -101,6 +102,9 @@ PLS.init("scanner.html");
       html += '<div class="scan-meter"><div class="fill" style="width:' + a.score + "%;background:" + ui.color + '"></div></div>' +
         "<p><strong>Score: " + a.score + "/100</strong></p>";
     }
+    if (a.demo) {
+      html += '<div class="notice stub" style="text-align:left">🎬 <strong>Demo result.</strong> This used a canned sample ingredient list — not a real product, and it did not use one of your free scans.</div>';
+    }
     html += "<p>" + PLS.esc(a.summary) + "</p>";
     if (a.toxicityAlert) {
       html += '<div class="notice avoid" style="text-align:left">☠️ <strong>Toxicity alert:</strong> ' + PLS.esc(a.toxicityAlert) + "</div>";
@@ -110,6 +114,18 @@ PLS.init("scanner.html");
       a.factors.forEach(function (f) {
         var sign = f.points > 0 ? "+" + f.points : String(f.points);
         html += "<li><strong>" + sign + "</strong> — " + PLS.esc(f.text) + "</li>";
+      });
+      html += "</ul>";
+    }
+    // A4: the evidence-calibrated explanations computed in buildAnalysis were
+    // never rendered, even though factor 6 promises "notes below". Render them
+    // here (deduping the toxicity alert already shown above).
+    var noteFlags = (a.flags || []).filter(function (f) { return f.text !== a.toxicityAlert; });
+    if (noteFlags.length) {
+      var NOTE_ICON = { danger: "🛑", warn: "⚠️", info: "ℹ️" };
+      html += "<h3 style='margin-top:12px;text-align:left'>📝 Notes</h3><ul style='text-align:left;padding-left:20px'>";
+      noteFlags.forEach(function (f) {
+        html += "<li>" + (NOTE_ICON[f.level] || "ℹ️") + " " + PLS.esc(f.text) + "</li>";
       });
       html += "</ul>";
     }
@@ -140,11 +156,12 @@ PLS.init("scanner.html");
 
   var lastInput = null; // the input behind the currently rendered analysis
 
-  function doAnalyze(input, freeReRun) {
-    if (!freeReRun && !PLS.isPaid() && PLS.scansRemaining() <= 0) { renderBudget(); return; }
+  function doAnalyze(input, freeReRun, isDemo) {
+    // Demo scans and AAFCO-confirmation re-runs are quota-free.
+    if (!isDemo && !freeReRun && !PLS.isPaid() && PLS.scansRemaining() <= 0) { renderBudget(); return; }
     resultEl.innerHTML = '<div class="card"><p>🔍 Sniffing out the details…</p></div>';
     PLS.Scanner.analyzeProduct(input, PLS.getActivePet()).then(function (a) {
-      if (!freeReRun) PLS.recordScan(); // confirmation re-runs don't cost a scan
+      if (!freeReRun && !isDemo) PLS.recordScan(); // confirmation re-runs and demos don't cost a scan
       lastInput = input;
       resultEl.innerHTML = renderAnalysis(a);
       renderBudget();
@@ -175,9 +192,14 @@ PLS.init("scanner.html");
     if (!v) { document.getElementById("scan-input").focus(); return; }
     runScan(v);
   };
+  // A1: the demo runs the canned DEMO_PRODUCT (full ingredients-text analysis)
+  // as a quota-free scan — never the unresolvable name-only path.
   document.getElementById("demo-btn").onclick = function () {
-    document.getElementById("scan-input").value = "Salmon & Sweet Potato Kibble";
-    runScan("Salmon & Sweet Potato Kibble");
+    var demo = {};
+    var src = PLS.Scanner.DEMO_PRODUCT || {};
+    Object.keys(src).forEach(function (k) { demo[k] = src[k]; });
+    demo.isDemo = true;
+    doAnalyze(demo, false, true);
   };
   renderBudget();
 })();
