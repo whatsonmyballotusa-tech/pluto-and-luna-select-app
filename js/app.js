@@ -123,7 +123,8 @@
       "Content is educational only and <strong>not veterinary advice</strong>. " +
       "Always consult your veterinarian. " +
       'Questions? <a href="mailto:plutoandlunaselect@gmail.com">plutoandlunaselect@gmail.com</a> · ' +
-      'AI posts are labeled — see <a href="community.html#ai-policy">our AI policy</a>.';
+      'AI posts are labeled — see <a href="community.html#ai-policy">our AI policy</a> · ' +
+      '<a href="privacy.html">Privacy policy</a>.';
     document.body.appendChild(el);
   }
 
