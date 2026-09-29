@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>Nutrition Planner — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">🥗 Nutrition Planner</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">Balanced homemade meals, built around your dog — with vet-nutritionist review.</p>
+
+  <div id="gate"></div>
+
+  <div id="planner" style="display:none">
+    <div class="notice stub">
+      🧪 <strong>In development.</strong> The balancing engine is being built with a
+      vet nutritionist. Below is the interface preview — calculations are not live yet.
+    </div>
+
+    <div class="card">
+      <h2>How it will work</h2>
+      <ol style="padding-left:20px;font-size:14px">
+        <li><strong>Pick your dog</strong> — weight, age, activity, conditions set the targets (AAFCO/NRC profiles).</li>
+        <li><strong>Choose ingredients</strong> — from USDA-verified foods you actually buy.</li>
+        <li><strong>We balance it</strong> — protein, fat, calcium:phosphorus, essential vitamins &amp; minerals, with supplement gaps flagged.</li>
+        <li><strong>Vet-nutritionist reviewed</strong> — every plan template passes professional review before it reaches you.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Why this matters</h2>
+      <p>95% of published home-prepared dog recipes are deficient in at least one essential nutrient (Stockman et al., <em>JAVMA</em> 2013). Good intentions aren't nutrition — math is. That's what this planner does.</p>
+    </div>
+
+    <div class="card">
+      <h2>Notify me</h2>
+      <p>Get pinged the day the planner goes live.</p>
+      <button class="btn block" id="notify-btn">Notify me at launch</button>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    <strong>Not veterinary advice.</strong> Homemade diets carry real deficiency risks.
+    The planner is a tool to use <em>with</em> your vet — never instead of one.
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cart.js"></script>
+<script>
+PLS.init("index.html");
+(function () {
+  if (!PLS.isPaid()) {
+    document.getElementById("gate").innerHTML = PLS.upgradeNudge("The advanced nutrition planner");
+  } else {
+    document.getElementById("planner").style.display = "block";
+    var done = localStorage.getItem("pls_planner_notify");
+    var btn = document.getElementById("notify-btn");
+    if (done) { btn.textContent = "✓ You're on the list"; btn.disabled = true; }
+    btn.onclick = function () {
+      localStorage.setItem("pls_planner_notify", "1");
+      btn.textContent = "✓ You're on the list"; btn.disabled = true;
+    };
+  }
+})();
+</script>
+</body>
+</html>
