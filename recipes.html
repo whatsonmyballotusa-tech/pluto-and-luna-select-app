@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>Dog-Friendly Recipes — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">🦴 Dog-Friendly Recipes</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">Homemade treats &amp; toppers. Tags marked <span class="tag match">green</span> match your active dog's profile.</p>
+
+  <div id="pet-context"></div>
+  <div class="field">
+    <input id="search" placeholder="🔍 Search recipes or tags…" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:15px">
+  </div>
+  <div id="recipes"></div>
+
+  <div class="disclaimer">
+    <strong>The 10% rule:</strong> treats &amp; toppers should be ≤ 10% of daily calories.
+    Nutrition figures are <strong>estimates pending vet-nutritionist review</strong> — not
+    formulation advice. Homemade <em>meals</em> need full nutrient balancing; ask your vet.
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/pets.js"></script>
+<script src="js/recipes.js"></script>
+<script>
+PLS.init("recipes.html");
+(function () {
+  var query = "";
+
+  function render() {
+    var pet = PLS.getActivePet();
+    document.getElementById("pet-context").innerHTML = pet
+      ? '<div class="notice">🐶 Personalizing for <strong>' + PLS.esc(pet.name) + "</strong> — matching tags glow green.</div>"
+      : '<div class="notice"><a href="pets.html">Add your dog</a> to get personalized recipe matches.</div>';
+
+    var q = query.toLowerCase();
+    var list = PLS.Recipes.RECIPES.filter(function (r) {
+      if (!q) return true;
+      return (r.name + " " + r.tags.join(" ") + " " + r.ingredients.join(" ")).toLowerCase().indexOf(q) !== -1;
+    });
+
+    document.getElementById("recipes").innerHTML = list.length ? list.map(function (r) {
+      var tags = PLS.Pets.matchTags(r.tags).map(function (t) {
+        return '<span class="tag' + (t.match ? " match" : "") + '">' + PLS.esc(t.tag) + "</span>";
+      }).join("");
+      return '<details class="guide"><summary>' + r.icon + " " + PLS.esc(r.name) +
+        ' <span style="font-weight:400;font-size:12px;color:var(--brown-soft)">· ' + PLS.esc(r.time) + "</span></summary>" +
+        '<div class="guide-body">' +
+        "<div>" + tags + ' <span class="badge pending">Nutrition estimated</span></div>' +
+        "<h3>Ingredients</h3><ul>" + r.ingredients.map(function (i) { return "<li>" + PLS.esc(i) + "</li>"; }).join("") + "</ul>" +
+        "<h3>Steps</h3><ol style='padding-left:20px'>" + r.steps.map(function (s) { return "<li>" + PLS.esc(s) + "</li>"; }).join("") + "</ol>" +
+        '<div class="notice">📊 ' + PLS.esc(r.nutritionNote) + "</div>" +
+        "<p style='font-size:13px'><strong>Storage:</strong> " + PLS.esc(r.storage) + "</p>" +
+        (r.warnings.length ? r.warnings.map(function (w) { return '<p style="font-size:13px">' + PLS.esc(w) + "</p>"; }).join("") : "") +
+        "</div></details>";
+    }).join("") : '<div class="empty-state"><span class="icon">🔍</span>No recipes match — try another search.</div>';
+  }
+
+  document.getElementById("search").addEventListener("input", function (e) {
+    query = e.target.value; render();
+  });
+  document.addEventListener("pls:petchange", render);
+  render();
+})();
+</script>
+</body>
+</html>
