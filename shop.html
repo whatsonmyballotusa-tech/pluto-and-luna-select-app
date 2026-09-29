@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>Shop — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">🛒 Shop</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">The treats, toys &amp; care we trust — from our store to your door.</p>
+
+  <div class="field">
+    <input id="search" placeholder="🔍 Search the store…" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:15px">
+  </div>
+  <div class="forum-cat" id="cat-filter"></div>
+  <div class="product-grid" id="products"></div>
+
+  <div class="card">
+    <h2>⭐ Plus members save 10%</h2>
+    <p>Pluto &amp; Luna Plus members get 10% off every order, automatically at checkout.</p>
+    <p><a class="btn ghost small" href="upgrade.html">Get Plus</a></p>
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/product.js"></script>
+<script>
+PLS.init("shop.html");
+(function () {
+  var filter = "all", query = "";
+
+  function money(n) { return "$" + n.toFixed(2); }
+
+  // Real product photos are URLs; fall back to a paw when a product has no image.
+  function pimg(p, size) {
+    size = size || 110;
+    if (p.image && p.image.indexOf("http") === 0) {
+      return '<img src="' + PLS.esc(p.image) + '" alt="' + PLS.esc(p.imageAlt || p.name) +
+        '" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">';
+    }
+    return '<span style="font-size:' + Math.round(size * 0.4) + 'px">' + PLS.esc(p.image || "🐾") + "</span>";
+  }
+
+  function renderCats() {
+    var cats = [{ id: "all", label: "Everything" }].concat(PLS.Store.categories);
+    var fc = document.getElementById("cat-filter");
+    fc.innerHTML = "";
+    cats.forEach(function (c) {
+      var s = document.createElement("span");
+      s.className = "chip" + (filter === c.id ? " selected" : "");
+      s.textContent = c.label;
+      s.onclick = function () { filter = c.id; renderProducts(); };
+      fc.appendChild(s);
+    });
+  }
+
+  function renderProducts() {
+    PLS.Store.listProducts({ category: filter === "all" ? null : filter, query: query || null }).then(function (items) {
+      document.getElementById("products").innerHTML = items.length ? items.map(function (p, i) {
+        return '<div class="product" data-idx="' + i + '">' +
+          '<div class="p-img">' + pimg(p) + "</div>" +
+          '<div class="p-body"><div class="p-cat">' + PLS.esc(p.category) + "</div>" +
+          '<div class="p-name">' + PLS.esc(p.name) + "</div>" +
+          '<div class="p-price">' + money(p.price) +
+          (p.compareAtPrice ? ' <span style="text-decoration:line-through;color:var(--brown-soft);font-size:12px">' + money(p.compareAtPrice) + "</span>" : "") +
+          "</div>" +
+          (p.rating ? '<div style="font-size:12px;color:var(--brown-soft)">⭐ ' + p.rating + " (" + p.reviews + ")</div>" : "") +
+          (p.inStock
+            ? '<button class="btn small block" style="margin-top:8px" data-add="' + PLS.esc(p.id) + '">Add to cart</button>'
+            : '<p style="font-size:12px;color:var(--coral);font-weight:700;margin-top:8px">Out of stock</p>') +
+          "</div></div>";
+      }).join("") : '<div class="empty-state"><span class="icon">🔍</span>Nothing found — try another search.</div>';
+
+        document.querySelectorAll("[data-add]").forEach(function (b) {
+          b.onclick = function () {
+            // The shared cart module owns the cart + toast + drawer.
+            PLS.Cart.add(b.getAttribute("data-add"), 1);
+          };
+        });
+
+        // Tapping a card (anything but the quick-add button) opens the detail view.
+        document.querySelectorAll("#products .product").forEach(function (card) {
+          var p = items[+card.getAttribute("data-idx")];
+          if (!p) return;
+          card.style.cursor = "pointer";
+          card.setAttribute("role", "button");
+          card.setAttribute("tabindex", "0");
+          card.setAttribute("aria-label", "View details: " + p.name);
+          card.addEventListener("click", function (e) {
+            if (e.target.closest("[data-add]")) return;
+            PLS.PDP.open(p);
+          });
+          card.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); PLS.PDP.open(p); }
+          });
+        });
+    }).catch(function () {
+      document.getElementById("products").innerHTML =
+        '<div class="empty-state"><span class="icon">⚠️</span>Couldn\'t reach the store just now — check your connection and try again.</div>';
+    });
+  }
+
+  var searchT = null;
+  document.getElementById("search").addEventListener("input", function (e) {
+    clearTimeout(searchT);
+    var v = e.target.value;
+    searchT = setTimeout(function () { query = v; renderProducts(); }, 350);
+  });
+
+  renderProducts();
+  PLS.Store.ready.then(function () { renderCats(); }); // categories load async from Shopify
+})();
+</script>
+</body>
+</html>
