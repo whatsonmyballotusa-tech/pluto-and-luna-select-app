@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3E2C23">
+<title>My Dogs — Pluto & Luna Select</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<main>
+  <h1 style="margin-bottom:4px">🐶 My Dogs</h1>
+  <p style="color:var(--brown-soft);margin-bottom:16px">Profiles power everything — scanner results, recipe matches, and reminders.</p>
+
+  <div id="pet-list"></div>
+
+  <div class="card" id="add-card">
+    <h2 id="form-title">Add a dog</h2>
+    <form id="pet-form">
+      <input type="hidden" id="pet-id">
+      <div class="field">
+        <label for="f-name">Name *</label>
+        <input id="f-name" required maxlength="30" placeholder="e.g. Pluto">
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="f-breed">Breed</label>
+          <input id="f-breed" maxlength="40" placeholder="e.g. Golden Retriever">
+        </div>
+        <div class="field">
+          <label for="f-emoji">Avatar</label>
+          <select id="f-emoji">
+            <option>🐶</option><option>🐕</option><option>🦮</option><option>🐩</option><option>🐺</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="f-age">Age (years)</label>
+          <input id="f-age" type="number" min="0" max="30" step="0.5" placeholder="3">
+        </div>
+        <div class="field">
+          <label for="f-weight">Weight (lbs)</label>
+          <input id="f-weight" type="number" min="1" max="300" step="0.5" placeholder="65">
+        </div>
+      </div>
+      <div class="field">
+        <label>Health conditions</label>
+        <div class="checkbox-row" id="f-conditions"></div>
+      </div>
+      <div class="field">
+        <label>Dietary needs</label>
+        <div class="checkbox-row" id="f-diet"></div>
+      </div>
+      <div class="field">
+        <label for="f-notes">Notes</label>
+        <textarea id="f-notes" rows="2" maxlength="300" placeholder="Anything else — meds, quirks, favorite toy…"></textarea>
+      </div>
+      <button class="btn block" type="submit">Save dog</button>
+      <button class="btn secondary block" type="button" id="cancel-edit" style="display:none;margin-top:8px">Cancel</button>
+    </form>
+  </div>
+
+  <div id="limit-card"></div>
+
+  <div class="disclaimer">
+    <strong>Health info stays on your device</strong> for now (localStorage). It syncs to
+    your account when cloud profiles launch — and it's never sold or shared.
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/pets.js"></script>
+<script>
+PLS.init("pets.html");
+(function () {
+  var editingId = null;
+  var selected = { conditions: [], diet: [] };
+
+  function chipRow(el, options, key) {
+    el.innerHTML = "";
+    options.forEach(function (opt) {
+      var s = document.createElement("span");
+      s.className = "chip" + (selected[key].indexOf(opt) !== -1 ? " selected" : "");
+      s.textContent = opt;
+      s.onclick = function () {
+        var i = selected[key].indexOf(opt);
+        if (i === -1) selected[key].push(opt); else selected[key].splice(i, 1);
+        s.classList.toggle("selected");
+      };
+      el.appendChild(s);
+    });
+  }
+
+  function renderChips() {
+    chipRow(document.getElementById("f-conditions"), PLS.Pets.CONDITION_OPTIONS, "conditions");
+    chipRow(document.getElementById("f-diet"), PLS.Pets.DIET_OPTIONS, "diet");
+  }
+
+  function renderList() {
+    var pets = PLS.Pets.getAll();
+    var list = document.getElementById("pet-list");
+    var active = PLS.getActivePet();
+    if (!pets.length) {
+      list.innerHTML = '<div class="empty-state"><span class="icon">🐾</span>No dogs yet — add your first above!</div>';
+    } else {
+      list.innerHTML = pets.map(function (p) {
+        var isActive = active && active.id === p.id;
+        return '<div class="card pet-card' + (isActive ? " active-pet" : "") + '">' +
+          PLS.Pets.avatarHTML(p) +
+          '<div style="flex:1"><strong>' + PLS.esc(p.name) + "</strong>" +
+          (isActive ? ' <span class="badge good">Active</span>' : "") +
+          '<div class="pet-meta">' + PLS.esc([p.breed, p.ageYears ? p.ageYears + " yrs" : null, p.weightLbs ? p.weightLbs + " lbs" : null].filter(Boolean).join(" · ") || "—") + "</div>" +
+          (p.conditions.length ? '<div style="margin-top:4px">' + p.conditions.map(function (c) { return '<span class="tag">' + PLS.esc(c) + "</span>"; }).join("") + "</div>" : "") +
+          "</div>" +
+          '<div style="display:flex;flex-direction:column;gap:6px">' +
+          (isActive ? "" : '<button class="btn small secondary" data-act="active" data-id="' + p.id + '">Set active</button>') +
+          '<button class="btn small secondary" data-act="edit" data-id="' + p.id + '">Edit</button>' +
+          '<button class="btn small secondary" data-act="del" data-id="' + p.id + '">Remove</button>' +
+          "</div></div>";
+      }).join("");
+    }
+
+    var atLimit = !PLS.isPaid() && pets.length >= PLS.FREE_LIMITS.maxPets;
+    document.getElementById("add-card").style.display = atLimit && !editingId ? "none" : "block";
+    document.getElementById("limit-card").innerHTML = atLimit
+      ? PLS.upgradeNudge("Adding more than " + PLS.FREE_LIMITS.maxPets + " pet profiles") : "";
+
+    list.querySelectorAll("button").forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute("data-id"), act = b.getAttribute("data-act");
+        if (act === "del" && confirm("Remove this dog's profile?")) { PLS.Pets.remove(id); renderList(); }
+        if (act === "active") { PLS.setActivePet(id); renderList(); }
+        if (act === "edit") startEdit(id);
+      };
+    });
+  }
+
+  function startEdit(id) {
+    var p = PLS.Pets.getAll().find(function (x) { return x.id === id; });
+    if (!p) return;
+    editingId = id;
+    document.getElementById("pet-id").value = id;
+    document.getElementById("f-name").value = p.name || "";
+    document.getElementById("f-breed").value = p.breed || "";
+    document.getElementById("f-emoji").value = p.photoEmoji || "🐶";
+    document.getElementById("f-age").value = p.ageYears != null ? p.ageYears : "";
+    document.getElementById("f-weight").value = p.weightLbs != null ? p.weightLbs : "";
+    document.getElementById("f-notes").value = p.notes || "";
+    selected.conditions = (p.conditions || []).slice();
+    selected.diet = (p.dietaryNeeds || []).slice();
+    document.getElementById("form-title").textContent = "Edit " + p.name;
+    document.getElementById("cancel-edit").style.display = "block";
+    document.getElementById("add-card").style.display = "block";
+    renderChips();
+    window.scrollTo({ top: document.getElementById("add-card").offsetTop - 60, behavior: "smooth" });
+  }
+
+  document.getElementById("cancel-edit").onclick = function () {
+    editingId = null;
+    document.getElementById("pet-form").reset();
+    selected = { conditions: [], diet: [] };
+    document.getElementById("form-title").textContent = "Add a dog";
+    this.style.display = "none";
+    renderChips(); renderList();
+  };
+
+  document.getElementById("pet-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var data = {
+      name: document.getElementById("f-name").value.trim(),
+      breed: document.getElementById("f-breed").value.trim(),
+      photoEmoji: document.getElementById("f-emoji").value,
+      ageYears: parseFloat(document.getElementById("f-age").value) || null,
+      weightLbs: parseFloat(document.getElementById("f-weight").value) || null,
+      conditions: selected.conditions.slice(),
+      dietaryNeeds: selected.diet.slice(),
+      notes: document.getElementById("f-notes").value.trim(),
+    };
+    if (!data.name) return;
+    if (editingId) {
+      PLS.Pets.update(editingId, data);
+      document.getElementById("cancel-edit").click();
+    } else {
+      var res = PLS.Pets.add(data);
+      if (!res.ok) { renderList(); return; }
+      document.getElementById("pet-form").reset();
+      selected = { conditions: [], diet: [] };
+      renderChips();
+    }
+    renderList();
+  });
+
+  renderChips();
+  renderList();
+})();
+</script>
+</body>
+</html>
